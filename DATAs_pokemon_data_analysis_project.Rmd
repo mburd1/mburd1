@@ -1,0 +1,133 @@
+---
+title: "Pitt DATAs Analysis Project"
+author: "DATAs"
+date: "4/1/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Make sure dplyr is in your User Library/Package List. If it isn't, make sure to enter install.packages("dplyr") into your console. The dplyr package is incredibly useful, as it can make data set manipulation much simpler.
+library(dplyr)
+
+# Loading data set into a variable (change the line to match with your own device)
+pokemon = read.csv('C://Users//kzhang//Downloads//Pokemon_Database.csv')
+
+# Rearranging the Pokemon by region
+pokemon_group = pokemon[order(pokemon$Region.of.Origin),]
+
+# Cutting away variables and specifying what we want to keep
+pokemon_reduced_vars <- pokemon_group[order(pokemon_group$Region.of.Origin),] %>%
+  select("Pokemon.Name", "Region.of.Origin", "Health.Stat", "Attack.Stat","Defense.Stat", "Special.Attack.Stat", "Special.Defense.Stat", "Speed.Stat",  "Primary.Type", "Secondary.Type", "Catch.Rate")
+
+pokemon_reduced_vars
+
+```
+
+```{r}
+# Let's try some more subsetting by removing observations that don't have a secondary typing
+nosecondtype = pokemon_reduced_vars[pokemon_reduced_vars$Secondary.Type != "NULL", ]
+
+#subset(pokemon_reduced_vars, Secondary.Type!="NULL") #Alternate method
+
+#Another alternate method
+#pokemon_reduced_vars = pokemon_reduced_vars %>%
+  #filter(Secondary.Type != 'NULL')
+
+```
+
+```{r}
+# Creating a new variable called Base Stat Total (BST for short)
+pokemon_data <- pokemon_reduced_vars %>%
+  mutate(BST = Health.Stat+Attack.Stat+Defense.Stat+Special.Attack.Stat+Special.Defense.Stat+Speed.Stat)
+```
+
+```{r}
+#Convert Region of Origin into a factor, then conduct an ANOVA test
+pokemon_data$Region.of.Origin = as.factor(pokemon_data$Region.of.Origin)
+bstreg.aov = aov(BST~Region.of.Origin, data = pokemon_data)
+summary(bstreg.aov)
+
+#Display the region distributions
+boxplot(BST~Region.of.Origin, data = pokemon_data, main = "Distributions of BST Across Region", xlab = "Region of Origin", ylab = "Base Stat Total")
+```
+```{r}
+# Looking through the data, it seems that quite a few Pokemon have multiple forms (alternate versions, Mega Evolutions, etc). Let's get rid of those.
+
+monswithnoalts = pokemon_group[pokemon_group$Alternate.Form.Name == "NULL",]
+
+monsnoalts_reduced_vars <- monswithnoalts[order(monswithnoalts$Region.of.Origin),] %>%
+  select("Pokemon.Name", "Region.of.Origin", "Health.Stat", "Attack.Stat","Defense.Stat", "Special.Attack.Stat", "Special.Defense.Stat", "Speed.Stat",  "Primary.Type", "Secondary.Type", "Catch.Rate")
+
+# Be sure to create the BST variable again
+pokemon_data2 <- monsnoalts_reduced_vars %>%
+  mutate(BST = Health.Stat+Attack.Stat+Defense.Stat+Special.Attack.Stat+Special.Defense.Stat+Speed.Stat)
+```
+
+```{r}
+# Conduct another ANOVA test with our new data set, then display the new distributions.
+
+pokemon_data2$Region.of.Origin = as.factor(pokemon_data2$Region.of.Origin)
+newbstreg.aov = aov(BST~Region.of.Origin, data = pokemon_data2)
+summary(newbstreg.aov)
+
+boxplot(BST~Region.of.Origin, data = pokemon_data2, main = "Distributions of BST Across Region", xlab = "Region of Origin", ylab = "Base Stat Total")
+```
+```{r}
+# Thinking back on it again, every region has several Legendary Pokemon with significantly higher than average BST (Base Stat Total). This could be skewing our data. Let's take our data set that already has the alternate forms removed, and remove the legendaries as well.
+
+monswithnoalts = pokemon_group[pokemon_group$Alternate.Form.Name == "NULL",]
+noaltsorlegends = monswithnoalts[monswithnoalts$Legendary.Type == "NULL",]
+  
+altslegends_reduced <- noaltsorlegends[order(noaltsorlegends$Region.of.Origin),] %>%
+  select("Pokemon.Name", "Region.of.Origin", "Health.Stat", "Attack.Stat","Defense.Stat", "Special.Attack.Stat", "Special.Defense.Stat", "Speed.Stat",  "Primary.Type", "Secondary.Type", "Catch.Rate")
+
+pokemon_data3 <- altslegends_reduced %>%
+  mutate(BST = Health.Stat+Attack.Stat+Defense.Stat+Special.Attack.Stat+Special.Defense.Stat+Speed.Stat)
+```
+
+```{r}
+# ANOVA test to see if any of the Regions' mean BSTs differ significantly from the rest
+pokemon_data3$Region.of.Origin = as.factor(pokemon_data3$Region.of.Origin)
+altlegends.aov = aov(BST~Region.of.Origin, data = pokemon_data3)
+summary(altlegends.aov)
+
+boxplot(BST~Region.of.Origin, data = pokemon_data3, main = "Distributions of BST Across Region", xlab = "Region of Origin", ylab = "Base Stat Total")
+```
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+# Histogram showing of median BST values for each region
+pokemon_data3 = pokemon_data3 %>% 
+  group_by(Region.of.Origin) %>% 
+  mutate(medBST = median(BST))
+
+pokemon_data3 = pokemon_data3 %>%
+  group_by(Region.of.Origin) %>%
+  mutate(number_of_mons = length(Region.of.Origin))
+
+notorder = ggplot(pokemon_data3, aes(x = Region.of.Origin, y = medBST/number_of_mons))+
+  geom_bar(stat='identity') +
+  xlab("Region of Origin") + ylab("Median BST of Region")
+
+notorder 
+```
+
+
+```{r}
+# Once again showing off median BST values for each region, but in chronological order
+pokemon_data3reorder = pokemon_data3 %>%
+  mutate(Region.of.Origin = fct_relevel(Region.of.Origin, "\"Kanto\"", "\"Johto\"", "\"Hoenn\"", "\"Sinnoh\"", "\"Unova\"", "\"Kalos\"", "\"Alola\"", "\"Galar\"")) %>%
+ggplot(aes(x = Region.of.Origin, y = medBST/number_of_mons))+
+  geom_bar(stat='identity') +
+  xlab("Region of Origin") + ylab("Median BST of Region")
+
+pokemon_data3reorder
+```
+
