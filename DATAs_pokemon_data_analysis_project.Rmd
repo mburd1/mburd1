@@ -119,7 +119,6 @@ notorder = ggplot(pokemon_data3, aes(x = Region.of.Origin, y = medBST/number_of_
 notorder 
 ```
 
-
 ```{r}
 # Once again showing off median BST values for each region, but in chronological order
 pokemon_data3reorder = pokemon_data3 %>%
